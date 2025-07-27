@@ -6,7 +6,7 @@
 /*   By: elerazo- <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/11 17:08:53 by elerazo-          #+#    #+#             */
-/*   Updated: 2025/07/27 14:46:57 by elerazo          ###   ########.fr       */
+/*   Updated: 2025/07/27 16:37:01 by elerazo          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 #include "../include/minishell.h"
@@ -59,13 +59,20 @@ void	update_env(t_shell *shell, char *key, char *value)
 {
 	int		i;
 	char	*new_var;
+	char	*tmp;
 
-	new_var = ft_strjoin(ft_strjoin(key, "="), value);
+	tmp = ft_strjoin(key, "=");
+	if (!tmp)
+		return ;
+	new_var = ft_strjoin(tmp, value);
+	free(tmp);
+	if (!new_var)
+		return ;
 	i = 0;
 	while (shell->env[i])
 	{
-		if (ft_strncmp(shell->env[i], key, ft_strlen(key)) == 0 && \
-				shell->env[i][ft_strlen(key)] == '=')
+		if (ft_strncmp(shell->env[i], key, ft_strlen(key)) == 0
+			&& shell->env[i][ft_strlen(key)] == '=')
 		{
 			free(shell->env[i]);
 			shell->env[i] = new_var;

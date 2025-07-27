@@ -22,7 +22,6 @@ void	clean_shell(t_shell *shell)
 		return ;
 	if (shell->env)
 		free_matrix(shell->env);
-	/*Liberar más si es necesario (tokens, comandos, redirecciones)*/
 }
 
 int	is_numeric(char *str)
@@ -53,7 +52,7 @@ int	builtin_exit(t_shell *shell, char **argv)
 	if (!is_numeric(argv[1]))
 	{
 		write(2, "exit: numeric argument required\n", 32);
-		clean_shell(shell); // libera memoria
+		clean_shell(shell);
 		exit(255);
 	}
 	if (argv[2])
@@ -62,7 +61,7 @@ int	builtin_exit(t_shell *shell, char **argv)
 		return (1);
 	}
 	status = ft_atoi(argv[1]);
-	clean_shell(shell); // libera memoria
+	clean_shell(shell);
 	exit(status % 256);
 	return (0);
 }

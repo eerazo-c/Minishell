@@ -47,7 +47,7 @@ void	sort_env(char **env)
 		j = i + 1;
 		while (env[j])
 		{
-			if (ft_strncmp(env[i], env[j], len) > 0) //here funtion
+			if (ft_strncmp(env[i], env[j], len) > 0)
 			{
 				tmp = env[i];
 				env[i] = env[j];
@@ -59,38 +59,90 @@ void	sort_env(char **env)
 	}
 }
 
-int	builtin_export(t_shell *shell, char **argv)
+static void	print_exported_vars(char **env_copy)
 {
-	char	**cpy;
 	int		i;
 	char	*equal;
 
-	(void)argv;
-	if (!shell || !shell->env) //revision si hay entorno
-		return (1);
-	cpy = cpy_env(shell->env);
-	if (!cpy)
-		return (1);
-	sort_env(cpy); //copia y ordena la variable
 	i = 0;
-	while (cpy[i])
+	while (env_copy[i])
 	{
 		write(1, "declare -x", 11);
-		equal = ft_strchr(cpy[i], '=');
+		equal = ft_strchr(env_copy[i], '=');
 		if (equal)
 		{
-			write(1, cpy[i], equal - cpy[i]);
+			write(1, env_copy[i], equal - env_copy[i]);
 			write(1, "=\"", 2);
 			write(1, equal + 1, ft_strlen(equal + 1));
 			write(1, "\"\n", 2);
 		}
 		else
 		{
-			write(1, cpy[i], ft_strlen(cpy[i]));
+			write(1, env_copy[i], ft_strlen(env_copy[i]));
 			write(1, "\n", 1);
 		}
-		free(cpy[i++]);
+		free(env_copy[i]);
+		i++;
 	}
-	free(cpy);
+	free(env_copy);
+}
+
+int	builtin_export(t_shell *shell, char **argv)
+{
+	char	**cpy;
+
+	(void)argv;
+	if (!shell || !shell->env)
+		return (1);
+	cpy = cpy_env(shell->env);
+	if (!cpy)
+		return (1);
+	sort_env(cpy);
+	print_exported_vars(cpy);
 	return (0);
 }
+
+/*
+static void	print_exported_vars(char **env_copy)
+{
+	int		i;
+	char	*equal;
+
+	i = 0;
+	while (env_copy[i])
+	{
+		write(1, "declare -x", 11);
+		equal = ft_strchr(env_copy[i], '=');
+		if (equal)
+		{
+			write(1, env_copy[i], equal - env_copy[i]);
+			write(1, "=\"", 2);
+			write(1, equal + 1, ft_strlen(equal + 1));
+			write(1, "\"\n", 2);
+		}
+		else
+		{
+			write(1, env_copy[i], ft_strlen(env_copy[i]));
+			write(1, "\n", 1);
+		}
+		free(env_copy[i]);
+		i++;
+	}
+	free(env_copy);
+}
+
+int	builtin_export(t_shell *shell, char **argv)
+{
+	char	**cpy;
+
+	(void)argv;
+	if (!shell || !shell->env)
+		return (1);
+	cpy = cpy_env(shell->env);
+	if (!cpy)
+		return (1);
+	sort_env(cpy);
+	print_exported_vars(cpy);
+	return (0);
+}
+*/

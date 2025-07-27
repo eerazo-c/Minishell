@@ -6,7 +6,7 @@
 /*   By: elerazo- <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/11 17:03:07 by elerazo-          #+#    #+#             */
-/*   Updated: 2025/07/27 15:43:41 by elerazo          ###   ########.fr       */
+/*   Updated: 2025/07/27 16:09:56 by elerazo          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 #include "../include/minishell.h"
@@ -14,7 +14,7 @@
 /*funciones que imprimen o trabajan con I/O
 funciones imprimen cosas al usuario, sin modificar el entorno.*/
 
-static	int	is_dash_n(const char *str) //por ahora static, si no poner a .h
+static	int	is_dash_n(const char *str)
 {
 	int	i;
 
@@ -39,13 +39,11 @@ int	builtin_echo(t_shell *shell, char **argv)
 	i = 1;
 	flag_n = 0;
 	(void)shell;
-	//chequea si hay uno o mas de -n
 	while (argv[i] && is_dash_n(argv[i]))
 	{
 		flag_n = 1;
 		i++;
 	}
-	//impimir argumentos con espacio
 	while (argv[i])
 	{
 		write (1, argv[i], ft_strlen(argv[i]));
@@ -67,7 +65,6 @@ int	builtin_pwd(t_shell *shell, char **argv)
 	i = 0;
 	while (argv[i])
 		i++;
-	//imprime el path en pantalla
 	if (getcwd(buffer, sizeof(buffer)) != NULL)
 	{
 		write (1, buffer, ft_strlen(buffer));
@@ -92,7 +89,7 @@ int	builtin_env(t_shell *shell, char **argv)
 		j = 0;
 		while (shell->env[i][j] && shell->env[i][j] != '=')
 			j++;
-		if (shell->env[i][j] == '=') //si tiene un '='
+		if (shell->env[i][j] == '=')
 		{
 			write (1, shell->env[i], ft_strlen(shell->env[i]));
 			write (1, "\n", 1);
