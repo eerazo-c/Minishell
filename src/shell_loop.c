@@ -3,55 +3,93 @@
 /*                                                        :::      ::::::::   */
 /*   shell_loop.c                                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: aybelhaj <aybelhaj@student.42.fr>          +#+  +:+       +#+        */
+/*   By: farges  <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/07/07 16:43:30 by aybelhaj          #+#    #+#             */
-/*   Updated: 2025/07/07 20:11:05 by aybelhaj         ###   ########.fr       */
+/*   Created: 2025/07/23 14:22:49 by farges            #+#    #+#             */
+/*   Updated: 2025/07/23 14:23:20 by farges           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/minishell.h"
 
+static int	init_std_fd(int (*arr)[2])
+{
+	(*arr)[0] = dup(STDIN_FILENO);
+	if ((*arr)[0] == -1)
+		return (1);
+	(*arr)[1] = dup(STDOUT_FILENO);
+	if ((*arr)[1] == -1)
+		return (1);
+	return (0);
+}
+
+// returns 1 in case of err, otherwise 0
+static int	readline_wrapper(char **line, t_shell *shell)
+{
+	*line = readline(PROMPT);
+	signignore(SIGINT);
+	g_signal = 0;
+	if (NULL == *line)
+	{
+		ft_putstr_fd("exit\n", STDOUT_FILENO);
+		free_array(shell->env);
+		return (1);
+	}
+	add_history(*line);
+	return (0);
+}
+
+static int	tokenize_and_check_wrp(char **line, t_shell *shell)
+{
+	if (*line != NULL && **line != '\0')
+	{
+		shell->tokens = tokenize_line(*line);
+		if (syntax_check(shell->tokens))
+			return (0);
+		if (expand_variables(shell, shell->tokens))
+			return (0);
+		if (retokenize(&shell->tokens))
+			return (0);
+		if (parse_tokens(shell, shell->tokens, &shell->cmd))
+			return (0);
+	}
+	return (1);
+}
+
+static void	reset_cmd_line(char **line, t_shell *shell)
+{
+	free(*line);
+	free_tokens(shell->tokens);
+	free_cmd_list(shell->cmd);
+	shell->tokens = NULL;
+	shell->cmd = NULL;
+}
+
 int	shell_loop(t_shell *shell)
 {
 	char	*line;
-	int		std_backup[2] = {dup(STDIN_FILENO), dup(STDOUT_FILENO)};
+	int		std_backup[2];
 
-	setup_signal_handlers();
 	while (1)
 	{
-		g_state.in_input = 1;
-		line = readline(PROMPT);
-		g_state.in_input = 0;
-		if (!line)
-		{
-			ft_putstr_fd("exit\n", STDOUT_FILENO);
-			free_array(shell->env);
+		init_signals(SIG_DEF);
+		if (init_std_fd(&std_backup) == 1)
+			exit(1);
+		signignore(SIGQUIT);
+		if (0 != readline_wrapper(&line, shell))
 			break ;
-		}
 		if (*line)
 		{
-			add_history(line);
-			shell->tokens = tokenize_line(line);
-			if (!syntax_check(shell->tokens))
-			{
-				shell->cmd = parse_tokens(shell, shell->tokens);
-				if (shell->cmd)
-					execute_cmd(shell, shell->cmd);
-			}
+			if (tokenize_and_check_wrp(&line, shell) && shell->cmd)
+				execute_cmd(shell, shell->cmd);
 			else
 			{
 				ft_putstr_fd("minishell: syntax error\n", STDERR_FILENO);
 				shell->last_status = 2;
 			}
 		}
-		free(line);
-		free_tokens(shell->tokens);
-		free_cmd_list(shell->cmd);
-		shell->cmd = NULL;
-		reset_std_fds(std_backup);
+		reset_cmd_line(&line, shell);
+		reset_std_fds(std_backup, shell);
 	}
-	close(std_backup[0]);
-	close(std_backup[1]);
 	return (0);
 }

@@ -1,148 +1,97 @@
-//header
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   builtins_export.c                                  :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: elerazo- <marvin@42.fr>                    +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/08/12 13:17:13 by elerazo-          #+#    #+#             */
+/*   Updated: 2025/08/12 13:17:16 by elerazo-         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
 #include "../include/minishell.h"
 
-int	count_env(char **env)
+static void	aux_reset_loop(char *arg, int *status)
+{
+	ft_putstr_fd("minishell: export: `", STDERR_FILENO);
+	ft_putstr_fd(arg, STDERR_FILENO);
+	ft_putstr_fd("': not a valid identifier\n", STDERR_FILENO);
+	*status = 1;
+}
+
+static int	print_export(t_shell *shell)
 {
 	int	i;
 
 	i = 0;
-	while (env && env[i])
-		i++;
-	return (i);
-}
-
-char	**cpy_env(char **env)
-{
-	char	**cpy;
-	int		i;
-	int		size;
-
-	i = 0;
-	size = count_env(env);
-	cpy = malloc(sizeof(char *) * (size + 1));
-	if (!cpy)
-		return (NULL);
-	i = 0;
-	while (i < size)
+	while (shell->env[i])
 	{
-		cpy[i] = ft_strdup(env[i]);
+		ft_putstr_fd("declare -x ", STDOUT_FILENO);
+		ft_putendl_fd(shell->env[i], STDOUT_FILENO);
 		i++;
 	}
-	cpy[i] = NULL;
-	return (cpy);
+	return (shell->last_status);
 }
 
-void	sort_env(char **env)
+static int	aux_get_var_name(char *str, char **name)
 {
-	int		i;
-	int		j;
-	char	*tmp;
-	int		len;
+	int	i;
 
 	i = 0;
-	j = 0;
-	len = ft_strlen(env[i]) + ft_strlen(env[j]);
-	while (env[i])
+	if (str == NULL)
+		return (FALSE);
+	if (!ft_isalpha(str[i]) && str[i] != '_')
+		return (FALSE);
+	i++;
+	while (str[i] && str[i] != '=')
 	{
-		j = i + 1;
-		while (env[j])
-		{
-			if (ft_strncmp(env[i], env[j], len) > 0)
-			{
-				tmp = env[i];
-				env[i] = env[j];
-				env[j] = tmp;
-			}
-			j++;
-		}
+		if (str[i] != '_' && !ft_isalnum(str[i]))
+			return (FALSE);
 		i++;
 	}
+	*name = malloc(sizeof(char) * (i + 1));
+	if (*name == NULL)
+		return (FALSE);
+	(*name)[i] = '\0';
+	while (i--)
+		(*name)[i] = str[i];
+	return (TRUE);
 }
 
-static void	print_exported_vars(char **env_copy)
+static int	handle_new_var(t_shell *shell, char *str)
 {
-	int		i;
-	char	*equal;
+	char	*name;
+	char	*value;
 
-	i = 0;
-	while (env_copy[i])
-	{
-		write(1, "declare -x", 11);
-		equal = ft_strchr(env_copy[i], '=');
-		if (equal)
-		{
-			write(1, env_copy[i], equal - env_copy[i]);
-			write(1, "=\"", 2);
-			write(1, equal + 1, ft_strlen(equal + 1));
-			write(1, "\"\n", 2);
-		}
-		else
-		{
-			write(1, env_copy[i], ft_strlen(env_copy[i]));
-			write(1, "\n", 1);
-		}
-		free(env_copy[i]);
-		i++;
-	}
-	free(env_copy);
+	value = ft_strchr(str, '=');
+	if (value == NULL)
+		return (TRUE);
+	if (aux_get_var_name(str, &name) == FALSE)
+		return (FALSE);
+	value++;
+	set_env_var(shell, name, value);
+	free(name);
+	return (TRUE);
 }
 
 int	builtin_export(t_shell *shell, char **argv)
 {
-	char	**cpy;
-
-	(void)argv;
-	if (!shell || !shell->env)
-		return (1);
-	cpy = cpy_env(shell->env);
-	if (!cpy)
-		return (1);
-	sort_env(cpy);
-	print_exported_vars(cpy);
-	return (0);
-}
-
-/*
-static void	print_exported_vars(char **env_copy)
-{
+	int		ret;
 	int		i;
-	char	*equal;
 
-	i = 0;
-	while (env_copy[i])
+	if (NULL == argv[1])
+		return (print_export(shell));
+	i = 1;
+	while (NULL != argv[i])
 	{
-		write(1, "declare -x", 11);
-		equal = ft_strchr(env_copy[i], '=');
-		if (equal)
-		{
-			write(1, env_copy[i], equal - env_copy[i]);
-			write(1, "=\"", 2);
-			write(1, equal + 1, ft_strlen(equal + 1));
-			write(1, "\"\n", 2);
-		}
+		ret = is_valid_env_key(argv[i]);
+		if (ret == FALSE)
+			aux_reset_loop(argv[i], &shell->last_status);
+		else if (ret == TRUE)
+			handle_new_var(shell, argv[1]);
 		else
-		{
-			write(1, env_copy[i], ft_strlen(env_copy[i]));
-			write(1, "\n", 1);
-		}
-		free(env_copy[i]);
+			shell->last_status = 0;
 		i++;
 	}
-	free(env_copy);
+	return (shell->last_status);
 }
-
-int	builtin_export(t_shell *shell, char **argv)
-{
-	char	**cpy;
-
-	(void)argv;
-	if (!shell || !shell->env)
-		return (1);
-	cpy = cpy_env(shell->env);
-	if (!cpy)
-		return (1);
-	sort_env(cpy);
-	print_exported_vars(cpy);
-	return (0);
-}
-*/

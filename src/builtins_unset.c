@@ -5,86 +5,44 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: elerazo- <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/06/11 17:07:07 by elerazo-          #+#    #+#             */
-/*   Updated: 2025/07/27 15:56:53 by elerazo          ###   ########.fr       */
+/*   Created: 2025/08/12 13:17:35 by elerazo-          #+#    #+#             */
+/*   Updated: 2025/08/12 13:17:39 by elerazo-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 #include "../include/minishell.h"
 
-//funciones que modifican el entorno
-//estas funciones agregan, quitan o validan variables de entorno.
-
-static int	ft_error(void)
+// returns 1 for err cases, returns 0 either it has deleted a node or not
+int	check_var_and_del(t_list **head, char *var)
 {
-	write (1, "\e[0;31mError\e[0m\n", 17);
-	exit(1);
-	return (-1);
+	t_list	*node;
+
+	if (*head == NULL || NULL == var)
+		return (ft_putstr_fd("minishell: unset: missing argument\n", 2), 1);
+	node = locate_env_var(*head, var);
+	if (NULL != node)
+		ft_lstremove_and_link(head, node);
+	return (0);
 }
 
-int	is_valid_identifier(char *str)
-{
-	int	i;
-
-	if (!str || !str[0])
-		return (0);
-	i = 0;
-	if (!((str[i] >= 'A' && str[i] <= 'Z')
-			|| (str[i] >= 'a' && str[i] <= 'z')
-			|| (str[i] == '_')))
-		return (ft_error());
-	i++;
-	while (str[i])
-	{
-		if (!((str[i] >= 'A' && str[i] <= 'Z')
-				|| (str[i] >= 'a' && str[i] <= 'z')
-				|| (str[i] >= '0' && str[i] <= '9')
-				|| (str[i] == '_')))
-			return (ft_error());
-		i++;
-	}
-	return (1);
-}
-
-static void	remove_unset_var(char **env, char *var)
-{
-	int	j;
-	int	k;
-
-	j = 0;
-	while (env[j])
-	{
-		if (ft_strncmp(env[j], var, ft_strlen(var)) == 0
-			&& env[j][ft_strlen(var)] == '=')
-		{
-			k = j;
-			while (env[k])
-			{
-				env[k] = env[k + 1];
-				k++;
-			}
-			break ;
-		}
-		j++;
-	}
-}
-
+// Function will iter over args and delete every env var that matches its name
 int	builtin_unset(t_shell *shell, char **argv)
 {
-	int	i;
+	char	**new_env;
+	size_t	i;
 
-	if (!shell || !shell->env)
-		return (1);
 	i = 1;
-	while (argv[i])
+	while (argv[i] != NULL)
 	{
-		if (!is_valid_identifier(argv[i]))
-		{
-			write(2, "unset: not a valid identifier\n", 29);
-			i++;
-			continue ;
-		}
-		remove_unset_var(shell->env, argv[i]);
+		if (check_var_and_del(&shell->raw_env, argv[i]) == 1)
+			break ;
 		i++;
 	}
-	return (0);
+	new_env = env_compiler(shell->raw_env);
+	if (new_env != NULL)
+	{
+		free_array(shell->env);
+		shell->env = new_env;
+		return (0);
+	}
+	return (1);
 }

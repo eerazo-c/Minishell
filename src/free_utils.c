@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   free_utils.c                                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: aybelhaj <aybelhaj@student.42.fr>          +#+  +:+       +#+        */
+/*   By: farges  <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/07/07 16:40:04 by aybelhaj          #+#    #+#             */
-/*   Updated: 2025/07/07 20:09:58 by aybelhaj         ###   ########.fr       */
+/*   Created: 2025/07/23 14:22:49 by farges            #+#    #+#             */
+/*   Updated: 2025/07/23 14:23:20 by farges           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -36,10 +36,7 @@ void	free_cmd(t_cmd *cmd)
 	{
 		i = 0;
 		while (cmd->argv[i])
-		{
-			free(cmd->argv[i]);
-			i++;
-		}
+			free(cmd->argv[i++]);
 		free(cmd->argv);
 	}
 	redir = cmd->redirs;
@@ -65,4 +62,19 @@ void	free_tokens(t_token *tokens)
 		free(tokens);
 		tokens = next;
 	}
+}
+
+void	free_array(char **array)
+{
+	int	i;
+
+	if (!array)
+		return ;
+	i = 0;
+	while (array[i])
+	{
+		free(array[i]);
+		i++;
+	}
+	free(array);
 }

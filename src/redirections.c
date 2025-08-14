@@ -3,49 +3,17 @@
 /*                                                        :::      ::::::::   */
 /*   redirections.c                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: aybelhaj <aybelhaj@student.42.fr>          +#+  +:+       +#+        */
+/*   By: farges  <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/07/07 16:43:17 by aybelhaj          #+#    #+#             */
-/*   Updated: 2025/07/07 20:10:56 by aybelhaj         ###   ########.fr       */
+/*   Created: 2025/07/23 14:22:49 by farges            #+#    #+#             */
+/*   Updated: 2025/07/23 14:23:20 by farges           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/minishell.h"
+#include <unistd.h>
 
-int	redirect_heredoc(t_shell *shell, t_redir *redir)
-{
-	int		fd[2];
-	char	*line;
-
-	(void)shell;
-	if (!redir || !redir->file)
-	{
-		ft_putstr_fd("minishell: heredoc: missing delimiter\n", STDERR_FILENO);
-		return (-1);
-	}
-	if (pipe(fd) == -1)
-		return (-1);
-	while (1)
-	{
-		line = readline("> ");
-		if (!line)
-		{
-			ft_putstr_fd("minishell: warning: here-document delimited by EOF\n",
-				STDERR_FILENO);
-			break ;
-		}
-		if (ft_strcmp(line, redir->file) == 0)
-			break ;
-		write(fd[1], line, ft_strlen(line));
-		write(fd[1], "\n", 1);
-		free(line);
-	}
-	if (line)
-		free(line);
-	close(fd[1]);
-	return (fd[0]);
-}
-static int	open_redirection(t_redir *redir, t_shell *shell)
+static int	open_redirection(t_redir *redir)
 {
 	int	fd;
 
@@ -57,7 +25,7 @@ static int	open_redirection(t_redir *redir, t_shell *shell)
 	else if (redir->type == REDIR_APPEND)
 		fd = open(redir->file, O_WRONLY | O_CREAT | O_APPEND, 0644);
 	else if (redir->type == REDIR_HEREDOC)
-		fd = redirect_heredoc(shell, redir);
+		fd = redir->hd_fd;
 	if (fd == -1)
 	{
 		ft_putstr_fd("minishell: ", STDERR_FILENO);
@@ -74,24 +42,33 @@ int	setup_redirections(t_shell *shell, t_cmd *cmd)
 	current = cmd->redirs;
 	while (current)
 	{
-		fd = open_redirection(current, shell);
+		fd = open_redirection(current);
 		if (fd == -1)
 			return (ERROR);
 		if (current->type == REDIR_IN || current->type == REDIR_HEREDOC)
-			dup2(fd, STDIN_FILENO);
-		else
-			dup2(fd, STDOUT_FILENO);
-		close(fd);
+		{
+			if (wrapper_dup2(fd, STDIN_FILENO, shell) == FALSE)
+				ft_putstr_fd("STDIN_FILENO err\n", 2);
+		}
+		else if (wrapper_dup2(fd, STDOUT_FILENO, shell) == FALSE)
+			ft_putstr_fd("STDOUT err\n", 2);
+		close_wrapper(fd);
 		current = current->next;
 	}
 	return (SUCCESS);
 }
 
-int	reset_std_fds(int backup[2])
+int	reset_std_fds(int backup[2], t_shell *shell)
 {
-	dup2(backup[0], STDIN_FILENO);
-	dup2(backup[1], STDOUT_FILENO);
-	close(backup[0]);
-	close(backup[1]);
+	if (backup[0] >= 0)
+		if (wrapper_dup2(backup[0], STDIN_FILENO, shell) == FALSE)
+			shell->last_status = errno;
+	if (backup[1] >= 0)
+		if (wrapper_dup2(backup[1], STDOUT_FILENO, shell) == FALSE)
+			shell->last_status = errno;
+	if (backup[0] >= 0)
+		close_wrapper(backup[0]);
+	if (backup[1] >= 0)
+		close_wrapper(backup[1]);
 	return (0);
 }

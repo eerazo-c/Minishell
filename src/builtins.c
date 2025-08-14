@@ -3,39 +3,75 @@
 /*                                                        :::      ::::::::   */
 /*   builtins.c                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: aybelhaj <aybelhaj@student.42.fr>          +#+  +:+       +#+        */
+/*   By: elerazo- <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/07/07 16:37:17 by aybelhaj          #+#    #+#             */
-/*   Updated: 2025/07/27 15:04:47 by elerazo          ###   ########.fr       */
+/*   Created: 2025/08/12 13:14:22 by elerazo-          #+#    #+#             */
+/*   Updated: 2025/08/12 13:14:27 by elerazo-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 #include "../include/minishell.h"
 
-int	is_builtin(char *cmd)
+static int	is_valid_exit_arg(char *arg)
 {
-	if (!cmd)
+	if (!arg || *arg == '\0')
 		return (0);
-	return (ft_strcmp(cmd, "echo") == 0 || ft_strcmp(cmd, "cd") == 0
-		|| ft_strcmp(cmd, "pwd") == 0 || ft_strcmp(cmd, "export") == 0
-		|| ft_strcmp(cmd, "unset") == 0 || ft_strcmp(cmd, "env") == 0
-		|| ft_strcmp(cmd, "exit") == 0);
+	if (*arg == '+' || *arg == '-')
+		arg++;
+	while (*arg)
+	{
+		if (!ft_isdigit(*arg))
+			return (0);
+		arg++;
+	}
+	return (1);
 }
 
-int	exec_builtin(t_shell *shell, t_cmd *cmd)
+int	builtin_exit(t_shell *shell, char **argv)
 {
-	if (ft_strcmp(cmd->argv[0], "echo") == 0)
-		return (builtin_echo(shell, cmd->argv));
-	if (ft_strcmp(cmd->argv[0], "cd") == 0)
-		return (builtin_cd(shell, cmd->argv));
-	if (ft_strcmp(cmd->argv[0], "pwd") == 0)
-		return (builtin_pwd(shell, cmd->argv));
-	if (ft_strcmp(cmd->argv[0], "export") == 0)
-		return (builtin_export(shell, cmd->argv));
-	if (ft_strcmp(cmd->argv[0], "unset") == 0)
-		return (builtin_unset(shell, cmd->argv));
-	if (ft_strcmp(cmd->argv[0], "env") == 0)
-		return (builtin_env(shell, cmd->argv));
-	if (ft_strcmp(cmd->argv[0], "exit") == 0)
-		return (builtin_exit(shell, cmd->argv));
+	int	exit_code;
+
+	exit_code = 0;
+	(void)shell;
+	if (argv[1] && argv[2])
+	{
+		ft_putstr_fd("minishell: exit: too many arguments\n", STDERR_FILENO);
+		return (1);
+	}
+	if (argv[1] && !is_valid_exit_arg(argv[1]))
+	{
+		ft_putstr_fd("minishell: exit: ", STDERR_FILENO);
+		ft_putstr_fd(argv[1], STDERR_FILENO);
+		ft_putstr_fd(": numeric argument required\n", STDERR_FILENO);
+		exit_code = 2;
+	}
+	else if (argv[1])
+	{
+		exit_code = ft_atoi(argv[1]);
+	}
+	exit(exit_code);
+}
+
+int	builtin_pwd(t_shell *shell, char **argv)
+{
+	char	*cwd;
+
+	(void)argv;
+	(void)shell;
+	cwd = getcwd(NULL, 0);
+	if (cwd)
+	{
+		ft_putstr_fd(cwd, STDOUT_FILENO);
+		ft_putchar_fd('\n', STDOUT_FILENO);
+		free(cwd);
+		return (0);
+	}
+	perror("minishell: pwd");
+	return (1);
+}
+
+int	builtin_env(t_shell *shell, char **argv)
+{
+	(void)argv;
+	print_lst(shell->raw_env);
 	return (0);
 }

@@ -1,22 +1,35 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   minishell.h                                        :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: farges  <marvin@42.fr>                     +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/07/23 14:22:49 by farges            #+#    #+#             */
+/*   Updated: 2025/07/23 14:23:20 by farges           ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #ifndef MINISHELL_H
 # define MINISHELL_H
-
 // === LIBRERÍAS ===
+# include "../libft/inc/libft.h"
+# include "ms_structs.h"
+# include <dirent.h>
+# include <errno.h>
+# include <fcntl.h>
+# include <readline/history.h>
+# include <readline/readline.h>
+# include <signal.h>
 # include <stdio.h>
 # include <stdlib.h>
-# include <unistd.h>
 # include <string.h>
-# include <fcntl.h>
-# include <errno.h>
-# include <signal.h>
-# include <termios.h>
-# include <sys/wait.h>
-# include <sys/types.h>
 # include <sys/stat.h>
-# include <dirent.h>
-# include <readline/readline.h>
-# include <readline/history.h>
-# include "../libft/libft.h"
+# include <sys/types.h>
+# include <sys/wait.h>
+# include <termios.h>
+# include <unistd.h>
+# include <assert.h>
 
 // === CONSTANTES ===
 # define PROMPT "minishell> "
@@ -24,148 +37,136 @@
 # define FALSE 0
 # define SUCCESS 0
 # define ERROR 1
-# define PATH_MAX 4096  // Tamaño razonable para la mayoría de sistemas
+# define PATH_MAX 4096
 
-// Estados para el análisis de comillas
-typedef enum e_parse_state
-{
-    STATE_GENERAL,
-    STATE_IN_SQUOTE,
-    STATE_IN_DQUOTE
-} t_parse_state;
-
-// === TIPOS DE TOKENS ===
-typedef enum e_token_type
-{
-	TOKEN_WORD,         // palabra (comando o argumento)
-	TOKEN_PIPE,         // |
-	TOKEN_REDIR_IN,     // <
-	TOKEN_REDIR_OUT,    // >
-	TOKEN_REDIR_APPEND, // >>
-	TOKEN_HEREDOC,      // <<
-}	t_token_type;
-
-// === ESTRUCTURA DE UN TOKEN ===
-typedef struct s_token
-{
-	t_token_type	type;
-	char		    *value;
-	struct s_token	*next;
-}	t_token;
-
-// === TIPOS DE REDIRECCIÓN ===
-typedef enum e_redir_type
-{
-	REDIR_IN,       // <
-	REDIR_OUT,      // >
-	REDIR_APPEND,   // >>
-	REDIR_HEREDOC   // <<
-}	t_redir_type;
-
-// === ESTRUCTURA DE REDIRECCIÓN ===
-typedef struct s_redir
-{
-	t_redir_type	type;
-	char		    *file;  // nombre del archivo o delimitador
-	struct s_redir	*next;
-}	t_redir;
-
-// === ESTRUCTURA DE UN COMANDO ===
-typedef struct s_cmd
-{
-	char		**argv;     // argumentos del comando
-	t_redir		*redirs;    // lista de redirecciones
-	struct s_cmd	*next;  // siguiente comando (en un pipe)
-}	t_cmd;
-
-// === ESTRUCTURA DEL SHELL ===
-typedef struct s_shell
-{
-	char		**env;              // copia del entorno
-	struct termios	orig_termios;   // configuración original del terminal
-	int		last_status;        // estado de salida del último comando
-	t_token		*tokens;            // tokens de la línea de comando actual
-	t_cmd		*cmd;               // comando actual en ejecución
-	int		interactive;        // 1 si el shell es interactivo
-	int     in_input_phase;  // Nuevo: para manejo de señales
-}	t_shell;
-
-// === VARIABLES GLOBALES ===
-typedef struct s_global
-{
-    volatile sig_atomic_t received;
-    int in_input;
-} t_global;
-extern volatile t_global g_state;
+extern int				g_signal;
 
 // === FUNCIONES DE SHELL ===
-int		main(int argc, char **argv, char **envp);
-void	init_shell(t_shell *shell, char **envp);
-int		shell_loop(t_shell *shell);
+void						init_shell(t_shell *shell, char **envp);
+int							shell_loop(t_shell *shell);
+
+// === ENV AND LIST TOOLS ===
+t_list						*env_lst_init(char **env);
+char						**env_compiler(t_list *head);
+int							generate_and_fill_arr(char ***arr, int i,
+								t_list *lst);
+void						set_env_var(t_shell *shell, const char *name,
+								const char *value);
+
+//	=== ENV UTILS ===
+t_list						*locate_env_var(t_list *node, char *var);
+char						*get_var_name(char *str);
+int							update_env(t_shell *shell, char *arg);
+int							is_valid_env_key(char *str);
+int							check_var_and_del(t_list **head, char *var);
 
 // === SIGNAL HANDLING ===
-void	setup_signal_handlers(void);
-void	sigint_handler(int sig);
+void						init_signals(int mode);
+void						signignore(int signum);
 
-// === LEXER Y PARSER ===
-t_token	*tokenize_line(char *line);
-int		is_special_char(char c);
-t_cmd	*parse_tokens(t_shell *shell, t_token *tokens);
-int		syntax_check(t_token *tokens);
-t_token	*create_token(t_token_type type, char *value);
-void	add_token(t_token **tokens, t_token_type type, char *value);
-//void	add_redirection(t_redir **redirs, t_redir_type type, char *file);
-void add_redirection(t_cmd *cmd, t_token *token);
+// === SYNTAX CHECK ===
+int							syntax_check(t_token *tokens);
 
-void	add_to_argv(char ***argv, char *arg);
+// === PARSE TOKEN ===
+int							parse_tokens(t_shell *shell, t_token *tokens,
+								t_cmd **head);
+// >>>	=== PARSE AUX
+t_cmd						*create_new_command(void);
+t_redir						*create_redirection(t_redir_type type, char *file);
+void						add_argument(t_cmd *cmd, char *arg);
+int							parse_pipe(t_token **current, t_cmd **cmd,
+								t_cmd **ptr);
+
+// === TOKENIZE ===
+t_token						*tokenize_line(char *line);
+t_token						*add_token(t_token **tokens, t_token_type type,
+								char *value);
+t_token						*create_token(t_token_type type, char *value);
+void						delete_token(t_token **head, t_token *ptr);
+// >>> TOKEN AUX
+int							is_token_word(t_token_type type);
+// >>> RETOKENIZE
+int							retokenize(t_token **head);
+
+// >>> COLLECT_WORD ===
+int							collect_words(t_token **head, char *line, int *i,
+								t_token_type *type);
 
 // === EXPANSIÓN ===
-void	expand_variables(t_shell *shell, char **word);
-void	expand_exit_status(t_shell *shell, char **result);
-void	append_char(char **str, char c);
-int		expand_dollar(t_shell *shell, char **result, char *ptr);
+int							expand_variables(t_shell *shell, t_token *head);
+char						*assemble_expansion(char *token_value, \
+							t_expand *dt);
+
+// === EXPAND_UTILS ===
+int							wrap_assamble_expansion(t_token **tkn, \
+								t_expand *dt);
+void						init_expand(t_expand *dt);
+int							aux_upd_data(t_expand *dt, char *match,
+								char *var_name, char *env_var);
 
 // === EXECUCIÓN ===
-int		execute_cmd(t_shell *shell, t_cmd *cmd);
-void	execute_pipe(t_shell *shell, t_cmd *cmd);
-int		is_builtin(char *cmd);
-int		exec_builtin(t_shell *shell, t_cmd *cmd);
-int		setup_redirections(t_shell *shell, t_cmd *cmd);
-int		reset_std_fds(int backup[2]);
-pid_t	execute_process(t_shell *shell, t_cmd *cmd);
-void	close_pipe_ends(int pipe_fd[2], int keep_read_end);
-void	wait_for_children(t_shell *shell, pid_t last_pid);
-int		builtin_in_pipe(char *cmd);
-int		redirect_heredoc(t_shell *shell, t_redir *redir);
+int							execute_cmd(t_shell *shell, t_cmd *cmd);
+pid_t						execute_process(t_shell *shell, t_cmd *cmd);
+void						exec_external(t_shell *shell, t_cmd *cmd);
 
-// === BUILTINS ===
-int		builtin_echo(t_shell *shell, char **argv);
-int		builtin_cd(t_shell *shell, char **argv);
-int		builtin_pwd(t_shell *shell, char **argv);
-int		builtin_export(t_shell *shell, char **argv);
-int		builtin_unset(t_shell *shell, char **argv);
-int		builtin_env(t_shell *shell, char **argv);
-int		builtin_exit(t_shell *shell, char **argv);
-int		is_valid_identifier(char *str);
-int		is_valid_exit_arg(char *arg);
-char	*get_ev_value(char **env, char *key);
-void	free_matrix(char **matrix);
-int		is_numeric(char *str);
-char	**cpy_env(char **env);
+// === EXECUCIÓN UTILS ===
+void						wrapper_single_command(t_shell *shell, t_cmd *cmd,
+								int *pid);
+void						wait_for_children(t_shell *shell, pid_t last_pid);
+int							builtin_in_pipe(char *cmd);
+void						close_pipe_ends(int pipe_fd[2], int keep_read_end);
+
+// === HEREDOC ===
+int							redirect_heredoc(t_shell *shell, t_redir *redir);
+
+// === EXEC PIPES ===
+void						execute_pipe(t_shell *shell, t_cmd *cmd);
+
+// === BUILTIN UTILS ===
+int							is_builtin(char *cmd);
+int							exec_builtin(t_shell *shell, t_cmd *cmd);
+int							is_valid_identifier(char *str);
+
+// === REDIR ===
+int							setup_redirections(t_shell *shell, t_cmd *cmd);
+int							reset_std_fds(int backup[2], t_shell *shell);
+
+// === COMPLETED BUILTINS ===
+int							builtin_echo(t_shell *shell, char **argv);
+int							builtin_export(t_shell *shell, char **argv);
+int							builtin_unset(t_shell *shell, char **argv);
+int							builtin_cd(t_shell *shell, char **argv);
+int							builtin_pwd(t_shell *shell, char **argv);
+int							builtin_env(t_shell *shell, char **argv);
+int							builtin_exit(t_shell *shell, char **argv);
+
+// === WRAPPERS ===
+int							wrapper_strjoin(char **s1, char *s2);
+int							wrapper_dup(int *holder, int fd, t_shell *shell);
+int							wrapper_dup2(int oldfd, int newfd, t_shell *shell);
+t_token						*wrapper_exit(t_token **head);
+void						wrapper_free_lst(t_list *head);
+
+// === WRAPPERS 2 ===
+void						free_wrapper(void **ptr);
+int							waitpid_wrapper(pid_t *ptr, int *status);
+void						close_wrapper(int fd);
+
+// === FREE UTILS ===
+void						free_cmd_list(t_cmd *head);
+void						free_cmd(t_cmd *cmd);
+void						free_tokens(t_token *tokens);
+void						free_array(char **array);
 
 // === UTILS ===
-void	error_msg(const char *msg);
-void	error_exit(char *msg);
-void	free_array(char **array);
-void	free_cmd(t_cmd *cmd);
-void	free_tokens(t_token *tokens);
-void	free_redirs(t_redir *redirs);
-char	*get_cmd_path(const char *cmd, char **envp);
-char	*get_env_value(t_shell *shell, const char *name);
-char	**copy_env(char **envp);
-int		add_env_var(t_shell *shell, char *var);
-int		remove_env_var(t_shell *shell, char *var);
-void    set_env_var(t_shell *shell, const char *name, const char *value);
-void free_cmd_list(t_cmd *head);
+void						error_exit(char *msg);
+void						free_array(char **array);
+void						free_cmd(t_cmd *cmd);
+void						free_tokens(t_token *tokens);
+char						*get_cmd_path(const char *cmd, char **envp);
+char						*get_env_value(t_shell *shell, const char *name);
+
+// === DEBUGGING TOOLS ===
+void						print_lst(t_list *ptr);
 
 #endif

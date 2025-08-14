@@ -3,13 +3,12 @@
 /*                                                        :::      ::::::::   */
 /*   builtin_utils.c                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: aybelhaj <aybelhaj@student.42.fr>          +#+  +:+       +#+        */
+/*   By: elerazo- <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/07/07 16:37:17 by aybelhaj          #+#    #+#             */
-/*   Updated: 2025/07/07 22:45:29 by elerazo          ###   ########.fr       */
+/*   Created: 2025/08/12 13:15:40 by elerazo-          #+#    #+#             */
+/*   Updated: 2025/08/12 13:15:45 by elerazo-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
-/*
 #include "../include/minishell.h"
 
 int	is_builtin(char *cmd)
@@ -52,4 +51,4 @@ int	is_valid_identifier(char *str)
 		str++;
 	}
 	return (1);
-}*/
+}

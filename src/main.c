@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   main.c                                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: aybelhaj <aybelhaj@student.42barcelona.co  +#+  +:+       +#+        */
+/*   By: farges  <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/07/07 16:36:40 by aybelhaj          #+#    #+#             */
-/*   Updated: 2025/07/07 20:10:19 by aybelhaj         ###   ########.fr       */
+/*   Created: 2025/07/23 14:22:49 by farges            #+#    #+#             */
+/*   Updated: 2025/07/23 14:23:20 by farges           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,9 +16,12 @@ int	main(int argc, char **argv, char **envp)
 {
 	t_shell	shell;
 
-	(void)argc;
+	if (argc != 1 || *envp == NULL)
+		return (1);
 	(void)argv;
 	init_shell(&shell, envp);
 	shell_loop(&shell);
+	wrapper_free_lst(shell.raw_env);
+	free_array(shell.env);
 	return (shell.last_status);
 }

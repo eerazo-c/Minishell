@@ -5,118 +5,74 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: elerazo- <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/06/11 17:08:53 by elerazo-          #+#    #+#             */
-/*   Updated: 2025/07/27 16:37:01 by elerazo          ###   ########.fr       */
+/*   Created: 2025/08/12 13:16:11 by elerazo-          #+#    #+#             */
+/*   Updated: 2025/08/12 13:16:17 by elerazo-         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 #include "../include/minishell.h"
 
-//funciones varias / control de shell
-//cd y exit no imprimen cosas ni modifican el entorno
-//de forma directa, sino que afectan el estado del shell o el proceso.
-
-char	**append_env(char **env, char *new_var)
+static int	aux_chdir(char **path, char **oldpwd)
 {
-	int		len;
-	char	**new_env;
-	int		i;
-
-	len = 0;
-	while (env && env[len])
-		len++;
-	new_env = malloc(sizeof(char *) * (len + 2));
-	if (!new_env)
-		return (env);
-	i = 0;
-	while (i < len)
+	if (chdir(*path) != 0)
 	{
-		new_env[i] = env[i];
-		i++;
+		perror("minishell: cd");
+		free(*oldpwd);
+		return (FALSE);
 	}
-	new_env[i++] = strdup(new_var);
-	new_env[i] = NULL;
-	free(env);
-	return (new_env);
+	return (TRUE);
 }
 
-char	*get_ev_value(char **env, char *key)
+static int	aux_nullpath(char **path, char **oldpwd)
 {
-	int		i;
-	size_t	len;
-
-	i = 0;
-	len = ft_strlen(key);
-	while (env[i])
+	if (NULL == *path)
 	{
-		if (!ft_strncmp(env[i], key, len) && env[i][len] == '=')
-			return (env[i] + len + 1);
-		i++;
+		ft_putstr_fd("minishell: cd: HOME not set\n", STDERR_FILENO);
+		free(*oldpwd);
+		*oldpwd = NULL;
+		return (FALSE);
 	}
-	return (NULL);
+	return (TRUE);
 }
 
-void	update_env(t_shell *shell, char *key, char *value)
+static int	aux_guard(char **argv)
 {
-	int		i;
-	char	*new_var;
-	char	*tmp;
-
-	tmp = ft_strjoin(key, "=");
-	if (!tmp)
-		return ;
-	new_var = ft_strjoin(tmp, value);
-	free(tmp);
-	if (!new_var)
-		return ;
-	i = 0;
-	while (shell->env[i])
+	if (argv[1] && argv[2])
 	{
-		if (ft_strncmp(shell->env[i], key, ft_strlen(key)) == 0
-			&& shell->env[i][ft_strlen(key)] == '=')
-		{
-			free(shell->env[i]);
-			shell->env[i] = new_var;
-			return ;
-		}
-		i++;
+		ft_putstr_fd("minishell: cd: too many arguments\n", STDERR_FILENO);
+		return (FALSE);
 	}
-	shell->env = append_env(shell->env, new_var);
-	free(new_var);
+	return (TRUE);
 }
 
-void	update_pwd(t_shell *shell)
+static int	aux_path(char **path, char **argv, t_shell *shell)
 {
-	char	buffer[1024];
-
-	if (getcwd(buffer, sizeof(buffer)) != NULL)
-		update_env(shell, "PWD", buffer);
+	*path = argv[1];
+	if (NULL == *path || ((*path)[0] == '~' && (*path)[1] == '\0'))
+		*path = get_env_value(shell, "HOME");
+	else if ((*path)[0] == '-' && (*path)[1] == '\0')
+		*path = get_env_value(shell, "OLDPWD");
+	if (*path == NULL)
+		return (FALSE);
+	return (TRUE);
 }
 
 int	builtin_cd(t_shell *shell, char **argv)
 {
 	char	*path;
-	char	oldpwd[1024];
+	char	cwd[PATH_MAX];
+	char	*oldpwd;
 
-	if (!shell || !shell->env)
+	if (aux_guard(argv) == FALSE)
 		return (1);
-	getcwd(oldpwd, sizeof(oldpwd));
-	if (!argv[1])
-	{
-		path = get_env_value(shell, "HOME");
-		if (!path)
-		{
-			write(2, "cd: HOME not set\n", 18);
+	oldpwd = getcwd(NULL, 0);
+	if (FALSE == aux_path(&path, argv, shell))
+		if (FALSE == aux_nullpath(&path, &oldpwd))
 			return (1);
-		}
-	}
-	else
-		path = argv[1];
-	if (chdir(path) == -1)
-	{
-		perror("cd");
+	if (FALSE == aux_chdir(&path, &oldpwd))
 		return (1);
-	}
-	update_env(shell, "OLDPWD", oldpwd);
-	update_pwd(shell);
+	set_env_var(shell, "OLDPWD", oldpwd);
+	getcwd(cwd, sizeof(cwd));
+	set_env_var(shell, "PWD", cwd);
+	free(oldpwd);
 	return (0);
 }
